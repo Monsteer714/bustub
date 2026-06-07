@@ -14,6 +14,8 @@
 
 #include <cstdint>
 #include <functional>
+#include <mutex>
+#include <queue>
 #include <utility>
 #include <vector>
 
@@ -103,6 +105,17 @@ class CountMinSketch {
   }
 
   /** @todo (student) can add their data structures that support count-min sketch operations */
+  using TwoDimensionalSketch = std::vector<std::vector<uint32_t>>;
+  TwoDimensionalSketch sketch_ = {};
+
+  std::mutex mutex_ = {};
+
+  using KeyPair = std::pair<KeyType, uint32_t>;
+
+  std::function<bool(KeyPair a, KeyPair b)> comp =
+      [](KeyPair a, KeyPair b) -> bool { return a.second < b.second; };
+
+  std::priority_queue<KeyPair, std::vector<KeyPair>, decltype(comp)> pq_{comp};
 };
 
 }  // namespace bustub
