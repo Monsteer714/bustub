@@ -71,7 +71,6 @@ void CountMinSketch<KeyType>::Insert(const KeyType &item) {
 
     mutex_.unlock();
   }
-
 }
 
 template <typename KeyType>
@@ -101,8 +100,8 @@ auto CountMinSketch<KeyType>::Count(const KeyType &item) const -> uint32_t {
 template <typename KeyType>
 void CountMinSketch<KeyType>::Clear() {
   /** @TODO(student) Implement this function! */
-  for (auto& i : sketch_) {
-    for (auto& j : i) {
+  for (auto &i : sketch_) {
+    for (auto &j : i) {
       j = 0;
     }
   }

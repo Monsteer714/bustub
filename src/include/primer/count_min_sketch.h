@@ -112,10 +112,9 @@ class CountMinSketch {
 
   using KeyPair = std::pair<KeyType, uint32_t>;
 
-  std::function<bool(KeyPair a, KeyPair b)> comp =
-      [](KeyPair a, KeyPair b) -> bool { return a.second < b.second; };
+  std::function<bool(KeyPair a, KeyPair b)> comp_ = [](KeyPair a, KeyPair b) -> bool { return a.second < b.second; };
 
-  std::priority_queue<KeyPair, std::vector<KeyPair>, decltype(comp)> pq_{comp};
+  std::priority_queue<KeyPair, std::vector<KeyPair>, decltype(comp_)> pq_{comp_};
 };
 
 }  // namespace bustub
