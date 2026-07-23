@@ -1,1 +1,0 @@
-select name from artist where area in (select id from area where name = 'England') and (begin_date_year >= 1970) and (begin_date_year <= 1979) and type=(select id from artist_type where name = 'Person') and id in (select artist from artist_credit_name where artist_credit in (select id from artist_credit where artist_count = 1)) order by name;

@@ -1,1 +1,1 @@
-select distinct(name) from artist_type order by name;
+select distinct division from divisions where active = 'Y' order by division;

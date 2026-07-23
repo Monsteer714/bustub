@@ -1,0 +1,128 @@
+Table appearances {
+    yearID smallint [pk]
+    teamID varchar [pk]
+    lgID varchar
+    playerID varchar [pk]
+    G_all smallint
+    G_batting smallint
+    HR smallint
+}
+
+Table awardsmanagers {
+    playerID varchar [pk]
+    awardID varchar [pk]
+    yearID smallint [pk]
+    lgID varchar [pk]
+}
+
+Table awardsplayers {
+    playerID varchar
+    awardID varchar
+    yearID smallint
+    lgID varchar
+}
+
+Table collegeplaying {
+    playerID varchar
+    schoolID varchar
+    yearID smallint
+}
+
+Table divisions {
+    divID varchar [pk]
+    lgID varchar [pk]
+    division varchar
+    active varchar
+}
+
+Table halloffame {
+    playerID varchar [pk]
+    yearid smallint [pk]
+    inducted varchar [pk]
+}
+
+Table leagues {
+    lgID varchar [pk]
+    league varchar
+    active varchar
+}
+
+Table managers {
+    playerID varchar
+    yearID smallint [pk]
+    teamID varchar [pk]
+    lgID varchar
+    inseason smallint [pk]
+}
+
+Table people {
+    ID integer
+    playerID varchar [pk]
+    birthYear integer
+    birthMonth integer
+    birthDay integer
+    birthCountry varchar
+    birthState varchar
+    birthCity varchar
+    deathYear integer
+    deathMonth integer
+    deathDay integer
+    deathCountry varchar
+    deathState varchar
+    deathCity varchar
+    nameFirst varchar
+    nameLast varchar
+    nameGiven varchar
+}
+
+Table schools {
+    schoolID varchar [pk]
+    name_full varchar
+    city varchar
+    state varchar
+    country varchar
+}
+
+Table teams {
+    yearID smallint [pk]
+    lgID varchar [pk]
+    teamID varchar [pk]
+    franchID varchar
+    divID varchar
+    teamRank smallint
+    name varchar
+    attendance integer
+}
+
+Ref: teams.lgID > divisions.divID
+Ref: teams.lgID > divisions.lgID
+Ref: divisions.lgID > leagues.lgID
+Ref: managers.playerID > people.playerID
+Ref: collegeplaying.schoolID > schools.schoolID
+Ref: managers.teamID > teams.yearID
+Ref: managers.teamID > teams.lgID
+Ref: managers.teamID > teams.teamID
+Ref: teams.divID > divisions.divID
+Ref: teams.divID > divisions.lgID
+Ref: awardsplayers.lgID > leagues.lgID
+Ref: halloffame.playerID > people.playerID
+Ref: managers.lgID > teams.yearID
+Ref: managers.lgID > teams.lgID
+Ref: managers.lgID > teams.teamID
+Ref: awardsmanagers.lgID > leagues.lgID
+Ref: collegeplaying.playerID > people.playerID
+Ref: managers.yearID > teams.yearID
+Ref: managers.yearID > teams.lgID
+Ref: managers.yearID > teams.teamID
+Ref: awardsplayers.playerID > people.playerID
+Ref: appearances.teamID > teams.yearID
+Ref: appearances.teamID > teams.lgID
+Ref: appearances.teamID > teams.teamID
+Ref: awardsmanagers.playerID > people.playerID
+Ref: appearances.lgID > teams.yearID
+Ref: appearances.lgID > teams.lgID
+Ref: appearances.lgID > teams.teamID
+Ref: appearances.playerID > people.playerID
+Ref: appearances.yearID > teams.yearID
+Ref: appearances.yearID > teams.lgID
+Ref: appearances.yearID > teams.teamID
