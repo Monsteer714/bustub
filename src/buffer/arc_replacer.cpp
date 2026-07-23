@@ -80,6 +80,51 @@ namespace bustub {
      * leaderboard tests.
      */
     void ArcReplacer::RecordAccess(frame_id_t frame_id, page_id_t page_id, [[maybe_unused]] AccessType access_type) {
+        /* Page already exists in MRU/MFU:
+         * This is the case where the actual cache hits. Move the page to the front of MFU. */
+        if (alive_lru_.contains(frame_id) == true || alive_lfu_.contains(frame_id) == true) {
+        }
+        /* Page already exists in MRU ghost:
+         * This is the case where the actual cache misses but we hit on the ghost list.
+         * In this case we treat it as a pseudo-hit and adapt the target size.
+         * If the size of the MRU ghost list is greater than or equal to the size of the MFU ghost list,
+         * increase the MRU target size by one. Else increase it by MFU ghost size / MRU ghost size (rounded down).
+         * Do not increase the target size above replacer_size.
+         * Then move the page to the front of MFU.
+         * The rational of this is if the MRU list is a little larger, then the DBMS could have had a cache hit. */
+        else if (ghost_lru_.contains(frame_id) == true) {
+        }
+        /* Page already exists in MFU ghost:
+         * Similar to the previous case, this is when the actual cache misses but we hit on the ghost list.
+         * If the size of the MFU ghost list is greater than or equal to the size of the MRU ghost list,
+         * decrease the MRU target size by 1. Else decrease the MRU target size by MRU ghost size / MFU ghost size (rounded down).
+         * Do not decrease the target size below 0. Then move the page to the front of MFU.
+         * The rational of this is if the MFU list is a little larger, the DBMS could have had a cache hit.*/
+        else if (ghost_lfu_.contains(frame_id) == true) {
+        }
+        /* Page is not in the replacer:
+         * This is the case where the actual cache misses and the ghost list misses.
+         * Then either of the following should happen.
+         *  If MRU size + MRU ghost size = replacer size: Kill the last element in the MRU ghost list, then add the page to the front of MRU.
+         *  Else MRU size + MRU ghost size should be smaller than replacer size (it should never be larger if you do things correctly).
+         *      In this case
+         *      If MRU size + MRU ghost size + MFU size + MFU ghost size = 2 * replacer size:
+         *      Kill the last element in the MFU ghost list, then add the page to the front of MRU.
+         *      Else simply add the page to the front of the MRU.*/
+        else {
+            if (alive_lru_.size() + ghost_lru_.size() == replacer_size_) {
+            }
+            else {
+                if (alive_lru_.size() + ghost_lru_.size() + alive_lfu_.size() + ghost_lfu_.size() == 2 *
+                    replacer_size_) {
+                }
+                else {
+                    FrameStatus frame_status = FrameStatus(page_id, frame_id, false, ArcStatus::MRU);
+                    std::shared_ptr<FrameStatus> frame_status_ptr = std::make_shared<FrameStatus>(frame_status);
+                    alive_lru_.put(frame_id, frame_status_ptr);
+                }
+            }
+        }
     }
 
     /**
@@ -100,7 +145,7 @@ namespace bustub {
      * @param set_evictable whether the given frame is evictable or not
      */
     void ArcReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
-        auto frame = std::shared_ptr<FrameStatus>{};
+        std::shared_ptr<FrameStatus> frame = std::make_shared<FrameStatus>(FrameStatus(0, 0, false, ArcStatus::MRU));
 
         if (contains(frame_id, frame) == false) {
             return;

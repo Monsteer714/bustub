@@ -9,129 +9,129 @@
 
 template <typename Key, typename Value>
 class LRUCache : public Cache<Key, Value> {
-public:
-    LRUCache(size_t capacity) : m_capacity_(capacity) {
+ public:
+  LRUCache(size_t capacity) : m_capacity_(capacity) {
+    init();
+  }
+
+  LRUCache() : m_capacity_(INT_MAX) {
+    init();
+  }
+
+  ~LRUCache() override {
+    auto temp = m_head_;
+    while (temp != nullptr) {
+      m_head_ = m_head_->next_;
+      delete temp;
+      temp = m_head_;
+    }
+  }
+
+  bool get(const Key &key, std::optional<Value> &value) override {
+    if (contains(key) == false) {
+      value = std::nullopt;
+      return false;
     }
 
-    LRUCache() : m_capacity_(INT_MAX) {
+    auto node = m_cache_[key];
+    value = node->value_;
+    putRecent(node);
+
+    return true;
+  }
+
+  bool put(const Key &key, const Value &value) override {
+    if (contains(key) == true) {
+      auto node = m_cache_[key];
+      node->value_ = value;
+      putRecent(node);
+      return true;
     }
 
-    ~LRUCache() override {
-        auto temp = m_head_;
-        while (temp != nullptr) {
-            m_head_ = m_head_->next_;
-            delete temp;
-            temp = m_head_;
-        }
+    NodePtr node = new Node(key, value);
+    putRecent(node);
+    m_cache_[key] = node;
+
+    if (m_capacity_ < size()) {
+      auto evictNode = evict();
+      m_cache_.erase((*evictNode)->key_);
+      delete *evictNode;
     }
 
-    bool get(const Key& key, std::optional<Value>& value) override {
-        if (contains(key) == false) {
-            value = std::nullopt;
-            return false;
-        }
+    return true;
+  }
 
-        auto node = m_cache_[key];
-        value = node->value_;
-        putRecent(node);
+  void setCapacity(int capacity) { m_capacity_ = capacity; }
 
-        return true;
+  bool contains(const Key &key) const { return m_cache_.find(key) != m_cache_.end(); }
+
+ public:
+  using NodePtr = Node<Key, Value> *;
+
+  void init() {
+    m_head_ = new Node<Key, Value>;
+    m_tail_ = new Node<Key, Value>;
+
+    m_head_->next_ = m_tail_;
+    m_tail_->prev_ = m_head_;
+  }
+
+  size_t size() const { return m_cache_.size(); }
+
+  bool empty() const { return m_cache_.empty(); }
+
+  bool putRecent(NodePtr node) {
+    node->prev_ = m_head_;
+    node->next_ = m_head_->next_;
+    m_head_->next_->prev_ = node;
+    m_head_->next_ = node;
+
+    return true;
+  }
+
+  std::optional<NodePtr> evict() {
+    if (empty()) {
+      return std::nullopt;
+    }
+    NodePtr node = m_tail_->prev_;
+
+    if (removeNode(node)) {
+      return node;
+    } else {
+      return std::nullopt;
+    }
+  }
+
+  bool removeNode(NodePtr node) {
+    if (empty()) {
+      return false;
     }
 
-    bool put(const Key& key, const Value& value) override {
-        if (contains(key) == true) {
-            auto node = m_cache_[key];
-            node->value_ = value;
-            putRecent(node);
-            return true;
-        }
+    auto next = node->next_;
+    auto prev = node->prev_;
+    prev->next_ = next;
+    next->prev_ = prev;
 
-        NodePtr node = new Node(key, value);
-        putRecent(node);
-        m_cache_[key] = node;
+    return true;
+  }
 
-        if (m_capacity_ < size()) {
-            auto evictNode = evict();
-            m_cache_.erase(evictNode->key_);
-            delete evictNode;
-        }
+  bool deleteNode(const Key &key) {
+    auto node = m_cache_[key];
+    removeNode(node);
+    m_cache_.erase(node->key_);
+    return true;
+  }
 
-        return true;
-    }
+  bool deleteNode(NodePtr node) {
+    removeNode(node);
+    m_cache_.erase(node->key_);
+    return true;
+  }
 
-    void setCapacity(int capacity) {
-        m_capacity_ = capacity;
-    }
-
-    bool contains(const Key& key) const {
-        return m_cache_.find(key) != m_cache_.end();
-    }
-
-public:
-    using NodePtr = Node<Key, Value>*;
-
-    void init() {
-        m_head_->next_ = m_tail_;
-        m_tail_->prev_ = m_head_;
-    }
-
-    int size() const {
-        return m_cache_.size();
-    }
-
-    bool empty() const {
-        return m_cache_.empty();
-    }
-
-    bool putRecent(NodePtr node) {
-        node->prev_ = m_head_;
-        node->next_ = m_head_->next_;
-        m_head_->next_->prev_ = node;
-        m_head_->next_ = node;
-
-        return true;
-    }
-
-    std::optional<NodePtr> evict() {
-        if (empty()) {
-            return std::nullopt;
-        }
-        NodePtr node = m_tail_->prev_;
-
-        return removeNode(node) ? node : std::nullopt;
-    }
-
-    bool removeNode(NodePtr node) {
-        if (empty()) {
-            return false;
-        }
-
-        auto next = node->next_;
-        auto prev = node->prev_;
-        prev->next_ = next;
-        next->prev_ = prev;
-
-        return true;
-    }
-
-
-    bool deleteNode(const Key& key) {
-        auto node = m_cache_[key];
-        removeNode(node);
-        m_cache_.erase(node->key_);
-        return true;
-    }
-
-    bool deleteNode(NodePtr node) {
-        removeNode(node);
-        m_cache_.erase(node->key_);
-        return true;
-    }
-
-    size_t m_capacity_ = {};
-    NodePtr m_head_ = {};
-    NodePtr m_tail_ = {};
-    std::unordered_map<Key, NodePtr> m_cache_ = {};
+  size_t m_capacity_ = {};
+  NodePtr m_head_ = {};
+  NodePtr m_tail_ = {};
+  std::unordered_map<Key, NodePtr> m_cache_ = {};
 };
 
 #endif  // BUSTUB_LRU_CACHE_H
