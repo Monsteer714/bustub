@@ -11,12 +11,14 @@ struct Node {
   Node *prev_ = {};
   Node *next_ = {};
   int freq_ = {};
+  bool evictable_ = {};
   Key key_ = {};
   Value value_ = {};
 
-  Node() : prev_(nullptr), next_(nullptr), freq_(0), key_(Key{}), value_(Value{}) {};
+  Node() : prev_(nullptr), next_(nullptr), freq_(0), evictable_(true), key_(Key{}), value_(Value{}){};
 
-  Node(const Key &key, const Value &value) : prev_(nullptr), next_(nullptr), freq_(0), key_(key), value_(value){};
+  Node(const Key &key, const Value &value)
+      : prev_(nullptr), next_(nullptr), freq_(0), evictable_(true), key_(key), value_(value){};
 };
 
 template <typename Key, typename Value>

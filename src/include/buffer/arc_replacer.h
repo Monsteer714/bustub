@@ -35,6 +35,8 @@ struct FrameStatus {
   bool evictable_;
   ArcStatus arc_status_;
 
+  FrameStatus() : page_id_(-1), frame_id_(-1), evictable_(true), arc_status_(ArcStatus::MRU) {}
+
   FrameStatus(page_id_t pid, frame_id_t fid, bool ev, ArcStatus st)
       : page_id_(pid), frame_id_(fid), evictable_(ev), arc_status_(st) {}
 };
@@ -62,7 +64,7 @@ class ArcReplacer {
   auto Size() -> size_t;
 
  private:
-  auto contains(frame_id_t frame_id, std::shared_ptr<FrameStatus> frame_status) -> bool {
+  auto get(frame_id_t frame_id, std::shared_ptr<FrameStatus>& frame_status) -> bool {
     if (alive_lru_.contains(frame_id) == false && alive_lfu_.contains(frame_id) == false) {
       return false;
     }
@@ -76,6 +78,30 @@ class ArcReplacer {
 
     return true;
   };
+
+  auto evictFromLRU(std::shared_ptr<FrameStatus>& frame_status) -> bool {
+    if (alive_lru_.m_evictable_cnt_ <= 0) {
+      return false;
+    }
+
+    alive_lru_.evict(frame_status);
+    alive_lru_.m_evictable_cnt_--;
+    curr_size_--;
+
+    return true;
+  }
+
+  auto evictFromLFU(std::shared_ptr<FrameStatus>& frame_status) -> bool {
+    if (alive_lfu_.m_evictable_cnt_ <= 0) {
+      return false;
+    }
+
+    alive_lfu_.evict(frame_status);
+    alive_lfu_.m_evictable_cnt_--;
+    curr_size_--;
+
+    return true;
+  }
 
   // TODO(student): implement me! You can replace or remove these member variables as you like.
   std::list<frame_id_t> mru_;
@@ -104,6 +130,7 @@ class ArcReplacer {
   [[maybe_unused]] size_t mru_target_size_{0};
   /* c as in original paper */
   [[maybe_unused]] size_t replacer_size_;
+
   std::mutex latch_;
 
   // TODO(student): You can add member variables / functions as you like.

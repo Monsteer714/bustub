@@ -10,9 +10,9 @@
 template <typename Key, typename Value>
 class LFUCache : public Cache<Key, Value> {
  public:
-  LFUCache(size_t capacity_) : m_capacity_(capacity_){};
+  LFUCache(size_t capacity_) : m_capacity_(capacity_), m_evictable_cnt_(0){};
 
-  LFUCache() : m_capacity_(INT_MAX) {}
+  LFUCache() : m_capacity_(INT_MAX), m_evictable_cnt_(0) {};
 
   ~LFUCache() override {
     for (auto [freq, head] : m_freq_to_list_) {
@@ -53,9 +53,7 @@ class LFUCache : public Cache<Key, Value> {
     m_key_to_node_[key] = node;
 
     if (m_key_to_node_.size() > m_capacity_) {
-      auto evictNode = evict();
-      m_key_to_node_.erase((*evictNode)->key_);
-      delete *evictNode;
+      evict();
     }
 
     return true;
@@ -90,19 +88,45 @@ class LFUCache : public Cache<Key, Value> {
     return true;
   }
 
-  std::optional<NodePtr> evict() {
+  std::optional<NodePtr> evictNode() {
     auto head = m_freq_to_list_[m_min_freq_];
     if (empty(head)) {
       return std::nullopt;
     }
 
-    auto evictNode = head->prev_;
-    removeNode(evictNode);
+    NodePtr node = nullptr;
+    for (size_t freq = 0; freq <= m_key_to_node_.size(); freq++) {
+      auto temp_head = m_freq_to_list_[freq];
+      auto temp = head->prev_;
 
-    return evictNode;
+      while (temp != temp_head && temp->evictable_ == false) {
+        temp = temp->prev_;
+      }
+
+      if (temp != temp_head && temp->evictable_ == true) {
+        node = temp;
+        break;
+      }
+    }
+
+    if (node == nullptr) {
+      return std::nullopt;
+    }
+
+    if (removeNode(node) == true) {
+      return node;
+    } else {
+      return std::nullopt;
+    }
+
+    return node;
   }
 
   bool removeNode(NodePtr node) {
+    if (empty(node) == true) {
+      return false;
+    }
+
     auto next = node->next_;
     auto prev = node->prev_;
 
@@ -145,7 +169,28 @@ class LFUCache : public Cache<Key, Value> {
     return true;
   }
 
+  void evict() {
+    auto node = evictNode();
+    m_key_to_node_.erase((*node)->key_);
+    // delete *node;
+  }
+
+  void evict(Value &value) {
+    auto node = evictNode();
+    m_key_to_node_.erase((*node)->key_);
+
+    value = (*node)->value_;
+  }
+
+  void kill() {
+    auto node = evictNode();
+    m_key_to_node_.erase((*node)->key_);
+
+    delete *node;
+  }
+
   size_t m_capacity_ = {};
+  size_t m_evictable_cnt_ = {};
   int m_min_freq_ = {};
 
   std::unordered_map<Key, NodePtr> m_key_to_node_ = {};

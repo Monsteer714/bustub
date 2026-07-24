@@ -10,13 +10,9 @@
 template <typename Key, typename Value>
 class LRUCache : public Cache<Key, Value> {
  public:
-  LRUCache(size_t capacity) : m_capacity_(capacity) {
-    init();
-  }
+  LRUCache(size_t capacity) : m_capacity_(capacity) { init(); }
 
-  LRUCache() : m_capacity_(INT_MAX) {
-    init();
-  }
+  LRUCache() : m_capacity_(INT_MAX) { init(); }
 
   ~LRUCache() override {
     auto temp = m_head_;
@@ -53,9 +49,7 @@ class LRUCache : public Cache<Key, Value> {
     m_cache_[key] = node;
 
     if (m_capacity_ < size()) {
-      auto evictNode = evict();
-      m_cache_.erase((*evictNode)->key_);
-      delete *evictNode;
+      evict();
     }
 
     return true;
@@ -89,13 +83,16 @@ class LRUCache : public Cache<Key, Value> {
     return true;
   }
 
-  std::optional<NodePtr> evict() {
+  std::optional<NodePtr> evictNode() {
     if (empty()) {
       return std::nullopt;
     }
-    NodePtr node = m_tail_->prev_;
+    auto node = m_tail_->prev_;
+    while (node != m_head_ && node->evictable_ == false) {
+      node = node->prev_;
+    }
 
-    if (removeNode(node)) {
+    if (node != m_head_ && removeNode(node)) {
       return node;
     } else {
       return std::nullopt;
@@ -128,7 +125,28 @@ class LRUCache : public Cache<Key, Value> {
     return true;
   }
 
+  void evict() {
+    auto node = evictNode();
+    m_cache_.erase((*node)->key_);
+    // delete *node;
+  }
+
+  void evict(Value &value) {
+    auto node = evictNode();
+    m_cache_.erase((*node)->key_);
+
+    value = (*node)->value_;
+  }
+
+  void kill() {
+    auto node = evictNode();
+    m_cache_.erase((*node)->key_);
+
+    delete *node;
+  }
+
   size_t m_capacity_ = {};
+  size_t m_evictable_cnt_ = {};
   NodePtr m_head_ = {};
   NodePtr m_tail_ = {};
   std::unordered_map<Key, NodePtr> m_cache_ = {};
