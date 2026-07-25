@@ -156,6 +156,7 @@ void ArcReplacer::RecordAccess(frame_id_t frame_id, page_id_t page_id, [[maybe_u
 
     ghost_lru_.deleteNode(page_id);
 
+    frame_status->frame_id_ = frame_id;
     frame_status->arc_status_ = ArcStatus::MFU;
     alive_lfu_.put(page_id, frame_status);
     if (frame_status->evictable_ == true) {
@@ -181,6 +182,7 @@ void ArcReplacer::RecordAccess(frame_id_t frame_id, page_id_t page_id, [[maybe_u
 
     ghost_lfu_.deleteNode(page_id);
 
+    frame_status->frame_id_ = frame_id;
     frame_status->arc_status_ = ArcStatus::MFU;
     alive_lfu_.put(page_id, frame_status);
     if (frame_status->evictable_ == true) {
