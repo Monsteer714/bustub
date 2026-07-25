@@ -88,7 +88,7 @@ class LRUCache : public Cache<Key, Value> {
       return std::nullopt;
     }
     auto node = m_tail_->prev_;
-    while (node != m_head_ && node->evictable_ == false) {
+    while (node != m_head_ && node->value_->evictable_ == false) {
       node = node->prev_;
     }
 

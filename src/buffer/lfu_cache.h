@@ -16,12 +16,15 @@ class LFUCache : public Cache<Key, Value> {
 
   ~LFUCache() override {
     for (auto [freq, head] : m_freq_to_list_) {
-      auto temp = head;
-      while (temp != nullptr) {
-        head = head->next_;
-        delete temp;
-        temp = head;
+      // 跳过哨兵，从第一个数据节点开始删除
+      auto node = head->next_;
+      while (node != head) {
+        auto next = node->next_;
+        delete node;
+        node = next;
       }
+      // 最后删除哨兵
+      delete head;
     }
   };
 
@@ -43,7 +46,7 @@ class LFUCache : public Cache<Key, Value> {
       return putAndRefresh(node);
     }
 
-    auto node = new Node<Key, Value>();
+    auto node = new Node(key, value);
     int freq = node->freq_;
     if (m_freq_to_list_.find(freq) == m_freq_to_list_.end()) {
       auto newList = init_list();
@@ -99,11 +102,11 @@ class LFUCache : public Cache<Key, Value> {
       auto temp_head = m_freq_to_list_[freq];
       auto temp = head->prev_;
 
-      while (temp != temp_head && temp->evictable_ == false) {
+      while (temp != temp_head && temp->value_->evictable_ == false) {
         temp = temp->prev_;
       }
 
-      if (temp != temp_head && temp->evictable_ == true) {
+      if (temp != temp_head && temp->value_->evictable_ == true) {
         node = temp;
         break;
       }

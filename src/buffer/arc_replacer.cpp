@@ -158,6 +158,9 @@ void ArcReplacer::RecordAccess(frame_id_t frame_id, page_id_t page_id, [[maybe_u
 
     frame_status->arc_status_ = ArcStatus::MFU;
     alive_lfu_.put(page_id, frame_status);
+    if (frame_status->evictable_ == true) {
+      curr_size_++;
+    }
   }
   /* Page already exists in MFU ghost:
    * Similar to the previous case, this is when the actual cache misses but we hit on the ghost list.
@@ -174,12 +177,15 @@ void ArcReplacer::RecordAccess(frame_id_t frame_id, page_id_t page_id, [[maybe_u
       }
     }
 
-    auto frame_status = ghost_lru_.m_cache_[page_id]->value_;
+    auto frame_status = ghost_lfu_.m_key_to_node_[page_id]->value_;
 
-    ghost_lru_.deleteNode(page_id);
+    ghost_lfu_.deleteNode(page_id);
 
     frame_status->arc_status_ = ArcStatus::MFU;
     alive_lfu_.put(page_id, frame_status);
+    if (frame_status->evictable_ == true) {
+      curr_size_++;
+    }
   }
   /* Page is not in the replacer:
    * This is the case where the actual cache misses and the ghost list misses.
