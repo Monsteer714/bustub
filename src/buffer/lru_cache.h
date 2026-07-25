@@ -131,11 +131,16 @@ class LRUCache : public Cache<Key, Value> {
     // delete *node;
   }
 
-  void evict(Value &value) {
+  bool evict(Value &value) {
     auto node = evictNode();
+    if (node == std::nullopt) {
+      return false;
+    }
     m_cache_.erase((*node)->key_);
 
     value = (*node)->value_;
+
+    return true;
   }
 
   void kill() {
@@ -146,7 +151,7 @@ class LRUCache : public Cache<Key, Value> {
   }
 
   size_t m_capacity_ = {};
-  size_t m_evictable_cnt_ = {};
+  //size_t m_evictable_cnt_ = {};
   NodePtr m_head_ = {};
   NodePtr m_tail_ = {};
   std::unordered_map<Key, NodePtr> m_cache_ = {};

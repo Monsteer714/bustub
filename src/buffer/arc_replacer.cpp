@@ -49,22 +49,30 @@ auto ArcReplacer::Evict() -> std::optional<frame_id_t> {
   std::shared_ptr<FrameStatus> frame_status = std::make_shared<FrameStatus>(FrameStatus());
   if (alive_lru_.size() < mru_target_size_) {
     if (evictFromLFU(frame_status) == true) {
-      // TODO : evict to ghostLFU
+      // evict to ghostLFU
+      frame_status->arc_status_ = ArcStatus::MFU_GHOST;
+      ghost_lfu_.put(frame_status->page_id_, frame_status);
     } else {
       if (evictFromLRU(frame_status) == false) {
         return std::nullopt;
       } else {
-        // TODO : evict to ghostLRU
+        // evict to ghostLRU
+        frame_status->arc_status_ = ArcStatus::MRU_GHOST;
+        ghost_lru_.put(frame_status->page_id_, frame_status);
       }
     }
   } else if (alive_lfu_.size() >= mru_target_size_) {
     if (evictFromLRU(frame_status) == true) {
-      // TODO : evict to ghostLRU
+      // evict to ghostLRU
+      frame_status->arc_status_ = ArcStatus::MRU_GHOST;
+      ghost_lru_.put(frame_status->page_id_, frame_status);
     } else {
       if (evictFromLFU(frame_status) == false) {
         return std::nullopt;
       } else {
-        // TODO : evict to ghostLFU
+        // evict to ghostLFU
+        frame_status->arc_status_ = ArcStatus::MFU_GHOST;
+        ghost_lru_.put(frame_status->page_id_, frame_status);
       }
     }
   }
@@ -111,15 +119,15 @@ void ArcReplacer::RecordAccess(frame_id_t frame_id, page_id_t page_id, [[maybe_u
     }
 
     auto status = frame_status->arc_status_;
-    auto evictable = frame_status->evictable_;
+    //auto evictable = frame_status->evictable_;
 
     if (status == ArcStatus::MRU) {
       alive_lru_.deleteNode(frame_id);
 
-      if (evictable == true) {
-        alive_lru_.m_evictable_cnt_--;
-        alive_lfu_.m_evictable_cnt_++;
-      }
+      //if (evictable == true) {
+      //  alive_lru_.m_evictable_cnt_--;
+      //  alive_lfu_.m_evictable_cnt_++;
+      //}
 
       frame_status->arc_status_ = ArcStatus::MFU;
       alive_lfu_.put(frame_id, frame_status);
@@ -136,6 +144,20 @@ void ArcReplacer::RecordAccess(frame_id_t frame_id, page_id_t page_id, [[maybe_u
    * Then move the page to the front of MFU.
    * The rational of this is if the MRU list is a little larger, then the DBMS could have had a cache hit. */
   else if (ghost_lru_.contains(page_id) == true) {
+    if (mru_target_size_ < replacer_size_) {
+      if (ghost_lru_.size() >= ghost_lfu_.size()) {
+        mru_target_size_++;
+      } else {
+        mru_target_size_ += ghost_lfu_.size() / ghost_lru_.size();
+      }
+    }
+
+    auto frame_status = ghost_lru_.m_cache_[page_id]->value_;
+
+    ghost_lru_.deleteNode(page_id);
+
+    frame_status->arc_status_ = ArcStatus::MFU;
+    alive_lfu_.put(page_id, frame_status);
   }
   /* Page already exists in MFU ghost:
    * Similar to the previous case, this is when the actual cache misses but we hit on the ghost list.
@@ -144,6 +166,20 @@ void ArcReplacer::RecordAccess(frame_id_t frame_id, page_id_t page_id, [[maybe_u
    * down). Do not decrease the target size below 0. Then move the page to the front of MFU. The rational of this is if
    * the MFU list is a little larger, the DBMS could have had a cache hit.*/
   else if (ghost_lfu_.contains(page_id) == true) {
+    if (mru_target_size_ > 0) {
+      if (ghost_lfu_.size() >= ghost_lru_.size()) {
+        mru_target_size_--;
+      } else {
+        mru_target_size_ -= ghost_lru_.size() / ghost_lfu_.size();
+      }
+    }
+
+    auto frame_status = ghost_lru_.m_cache_[page_id]->value_;
+
+    ghost_lru_.deleteNode(page_id);
+
+    frame_status->arc_status_ = ArcStatus::MFU;
+    alive_lfu_.put(page_id, frame_status);
   }
   /* Page is not in the replacer:
    * This is the case where the actual cache misses and the ghost list misses.
@@ -188,11 +224,11 @@ void ArcReplacer::RecordAccess(frame_id_t frame_id, page_id_t page_id, [[maybe_u
 void ArcReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
   std::shared_ptr<FrameStatus> frame = std::make_shared<FrameStatus>(FrameStatus());
 
-  ArcStatus status = {};
+  //ArcStatus status = {};
   if (get(frame_id, frame) == false) {
     return;
   }
-  status = frame->arc_status_;
+  //status = frame->arc_status_;
 
   bool oldEvictableStatus = frame->evictable_;
   if (set_evictable == true) {
@@ -201,21 +237,21 @@ void ArcReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
     } else if (oldEvictableStatus == false) {
       frame->evictable_ = true;
       curr_size_++;
-      if (status == ArcStatus::MRU) {
-        alive_lru_.m_evictable_cnt_++;
-      } else if (status == ArcStatus::MFU) {
-        alive_lfu_.m_evictable_cnt_++;
-      }
+      //if (status == ArcStatus::MRU) {
+      //  alive_lru_.m_evictable_cnt_++;
+      //} else if (status == ArcStatus::MFU) {
+      //  alive_lfu_.m_evictable_cnt_++;
+      //}
     }
   } else if (set_evictable == false) {
     if (oldEvictableStatus == true) {
       frame->evictable_ = false;
       curr_size_--;
-      if (status == ArcStatus::MRU) {
-        alive_lru_.m_evictable_cnt_--;
-      } else if (status == ArcStatus::MFU) {
-        alive_lfu_.m_evictable_cnt_--;
-      }
+      //if (status == ArcStatus::MRU) {
+      //  alive_lru_.m_evictable_cnt_--;
+      //} else if (status == ArcStatus::MFU) {
+      //  alive_lfu_.m_evictable_cnt_--;
+      //}
     } else if (oldEvictableStatus == false) {
       return;
     }
@@ -252,11 +288,11 @@ void ArcReplacer::Remove(frame_id_t frame_id) {
 
   if (alive_lru_.contains(frame_id) == true) {
     alive_lru_.deleteNode(frame_id);
-    alive_lru_.m_evictable_cnt_--;
+    //alive_lru_.m_evictable_cnt_--;
   }
   if (alive_lfu_.contains(frame_id) == true) {
     alive_lfu_.deleteNode(frame_id);
-    alive_lfu_.m_evictable_cnt_--;
+    //alive_lfu_.m_evictable_cnt_--;
   }
 
   curr_size_--;
