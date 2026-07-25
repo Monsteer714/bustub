@@ -17,6 +17,9 @@ class LFUCache : public Cache<Key, Value> {
   ~LFUCache() override {
     for (auto [freq, head] : m_freq_to_list_) {
       // 跳过哨兵，从第一个数据节点开始删除
+      if (head == nullptr) {
+        continue;
+      }
       auto node = head->next_;
       while (node != head) {
         auto next = node->next_;
@@ -79,7 +82,7 @@ class LFUCache : public Cache<Key, Value> {
 
   size_t size() const { return m_key_to_node_.size(); }
 
-  bool empty(NodePtr node) { return node->next_ == node && node->prev_ == node; }
+  bool empty(NodePtr node) { return node == nullptr || (node->next_ == node && node->prev_ == node); }
 
   bool putRecent(NodePtr node, int freq) {
     auto head = m_freq_to_list_[freq];

@@ -61,7 +61,7 @@ auto ArcReplacer::Evict() -> std::optional<frame_id_t> {
         ghost_lru_.put(frame_status->page_id_, frame_status);
       }
     }
-  } else if (alive_lfu_.size() >= mru_target_size_) {
+  } else if (alive_lru_.size() >= mru_target_size_) {
     if (evictFromLRU(frame_status) == true) {
       // evict to ghostLRU
       frame_status->arc_status_ = ArcStatus::MRU_GHOST;
