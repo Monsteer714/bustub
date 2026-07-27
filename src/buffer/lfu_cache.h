@@ -12,7 +12,7 @@ class LFUCache : public Cache<Key, Value> {
  public:
   LFUCache(size_t capacity_) : m_capacity_(capacity_){};
 
-  LFUCache() : m_capacity_(INT_MAX) {};
+  LFUCache() : m_capacity_(INT_MAX){};
 
   ~LFUCache() override {
     for (auto [freq, head] : m_freq_to_list_) {
@@ -201,7 +201,7 @@ class LFUCache : public Cache<Key, Value> {
   }
 
   size_t m_capacity_ = {};
-  //size_t m_evictable_cnt_ = {};
+  // size_t m_evictable_cnt_ = {};
   int m_min_freq_ = {};
 
   std::unordered_map<Key, NodePtr> m_key_to_node_ = {};

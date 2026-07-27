@@ -151,7 +151,7 @@ class LRUCache : public Cache<Key, Value> {
   }
 
   size_t m_capacity_ = {};
-  //size_t m_evictable_cnt_ = {};
+  // size_t m_evictable_cnt_ = {};
   NodePtr m_head_ = {};
   NodePtr m_tail_ = {};
   std::unordered_map<Key, NodePtr> m_cache_ = {};

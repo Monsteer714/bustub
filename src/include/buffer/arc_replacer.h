@@ -64,63 +64,53 @@ class ArcReplacer {
   auto Size() -> size_t;
 
  private:
-  auto get(frame_id_t frame_id, std::shared_ptr<FrameStatus>& frame_status) -> bool {
-    if (alive_lru_.contains(frame_id) == false && alive_lfu_.contains(frame_id) == false) {
+  auto Get(frame_id_t frame_id, std::shared_ptr<FrameStatus> &frame_status) -> bool {
+    if (!alive_lru_.contains(frame_id) && !alive_lfu_.contains(frame_id)) {
       return false;
     }
 
-    if (alive_lru_.contains(frame_id) == true) {
+    if (alive_lru_.contains(frame_id)) {
       frame_status = alive_lru_.m_cache_[frame_id]->value_;
     }
-    if (alive_lfu_.contains(frame_id) == true) {
+    if (alive_lfu_.contains(frame_id)) {
       frame_status = alive_lfu_.m_key_to_node_[frame_id]->value_;
     }
 
     return true;
   };
 
-  auto evictFromLRU(std::shared_ptr<FrameStatus>& frame_status) -> bool {
-    //if (alive_lru_.m_evictable_cnt_ <= 0) {
-    //  return false;
-    //}
-
-    if (alive_lru_.evict(frame_status) == false) {
+  auto EvictFromLru(std::shared_ptr<FrameStatus> &frame_status) -> bool {
+    if (!alive_lru_.evict(frame_status)) {
       return false;
     }
-    //alive_lru_.m_evictable_cnt_--;
     curr_size_--;
 
     return true;
   }
 
-  auto evictFromLFU(std::shared_ptr<FrameStatus>& frame_status) -> bool {
-    //if (alive_lfu_.m_evictable_cnt_ <= 0) {
-    //  return false;
-    //}
-
-    if (alive_lfu_.evict(frame_status) == false) {
+  auto EvictFromLfu(std::shared_ptr<FrameStatus> &frame_status) -> bool {
+    if (!alive_lfu_.evict(frame_status)) {
       return false;
     }
-    //alive_lfu_.m_evictable_cnt_--;
     curr_size_--;
 
     return true;
   }
 
   // TODO(student): implement me! You can replace or remove these member variables as you like.
- // std::list<frame_id_t> mru_;
- // std::list<frame_id_t> mfu_;
- // std::list<page_id_t> mru_ghost_;
- // std::list<page_id_t> mfu_ghost_;
+  // std::list<frame_id_t> mru_;
+  // std::list<frame_id_t> mfu_;
+  // std::list<page_id_t> mru_ghost_;
+  // std::list<page_id_t> mfu_ghost_;
 
- // /* record entries in mru_ and mfu_
- //  * this uses frame_id_t to guarantee no duplicate records for the same
- //  * frame when they are alive */
- // std::unordered_map<frame_id_t, std::shared_ptr<FrameStatus>> alive_map_;
- // /* record entries in mru_ghost_ and mfu_ghost_
- //  * this uses page_id_t but not frame_id_t because page_id is the unique
- //  * identifier in ghost lists */
- // std::unordered_map<page_id_t, std::shared_ptr<FrameStatus>> ghost_map_;
+  // /* record entries in mru_ and mfu_
+  //  * this uses frame_id_t to guarantee no duplicate records for the same
+  //  * frame when they are alive */
+  // std::unordered_map<frame_id_t, std::shared_ptr<FrameStatus>> alive_map_;
+  // /* record entries in mru_ghost_ and mfu_ghost_
+  //  * this uses page_id_t but not frame_id_t because page_id is the unique
+  //  * identifier in ghost lists */
+  // std::unordered_map<page_id_t, std::shared_ptr<FrameStatus>> ghost_map_;
 
   LRUCache<frame_id_t, std::shared_ptr<FrameStatus>> alive_lru_ = {};
   LFUCache<frame_id_t, std::shared_ptr<FrameStatus>> alive_lfu_ = {};

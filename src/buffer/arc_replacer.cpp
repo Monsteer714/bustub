@@ -25,7 +25,7 @@ namespace bustub {
  * @brief a new ArcReplacer, with lists initialized to be empty and target size to 0
  * @param num_frames the maximum number of frames the ArcReplacer will be required to cache
  */
-ArcReplacer::ArcReplacer(size_t num_frames) : replacer_size_(num_frames){}
+ArcReplacer::ArcReplacer(size_t num_frames) : replacer_size_(num_frames) {}
 
 /**
  * TODO(P1): Add implementation
@@ -47,33 +47,32 @@ ArcReplacer::ArcReplacer(size_t num_frames) : replacer_size_(num_frames){}
  */
 auto ArcReplacer::Evict() -> std::optional<frame_id_t> {
   std::shared_ptr<FrameStatus> frame_status = std::make_shared<FrameStatus>(FrameStatus());
+
+  std::lock_guard<std::mutex> guard(latch_);
+
   if (alive_lru_.size() < mru_target_size_) {
-    if (evictFromLFU(frame_status) == true) {
+    if (EvictFromLfu(frame_status)) {
       // evict to ghostLFU
       frame_status->arc_status_ = ArcStatus::MFU_GHOST;
       ghost_lfu_.put(frame_status->page_id_, frame_status);
+    } else if (!EvictFromLru(frame_status)) {
+      return std::nullopt;
     } else {
-      if (evictFromLRU(frame_status) == false) {
-        return std::nullopt;
-      } else {
-        // evict to ghostLRU
-        frame_status->arc_status_ = ArcStatus::MRU_GHOST;
-        ghost_lru_.put(frame_status->page_id_, frame_status);
-      }
-    }
-  } else if (alive_lru_.size() >= mru_target_size_) {
-    if (evictFromLRU(frame_status) == true) {
       // evict to ghostLRU
       frame_status->arc_status_ = ArcStatus::MRU_GHOST;
       ghost_lru_.put(frame_status->page_id_, frame_status);
+    }
+  } else if (alive_lru_.size() >= mru_target_size_) {
+    if (EvictFromLru(frame_status)) {
+      // evict to ghostLRU
+      frame_status->arc_status_ = ArcStatus::MRU_GHOST;
+      ghost_lru_.put(frame_status->page_id_, frame_status);
+    } else if (!EvictFromLfu(frame_status)) {
+      return std::nullopt;
     } else {
-      if (evictFromLFU(frame_status) == false) {
-        return std::nullopt;
-      } else {
-        // evict to ghostLFU
-        frame_status->arc_status_ = ArcStatus::MFU_GHOST;
-        ghost_lru_.put(frame_status->page_id_, frame_status);
-      }
+      // evict to ghostLFU
+      frame_status->arc_status_ = ArcStatus::MFU_GHOST;
+      ghost_lru_.put(frame_status->page_id_, frame_status);
     }
   }
   return frame_status->frame_id_;
@@ -111,23 +110,25 @@ auto ArcReplacer::Evict() -> std::optional<frame_id_t> {
 void ArcReplacer::RecordAccess(frame_id_t frame_id, page_id_t page_id, [[maybe_unused]] AccessType access_type) {
   /* Page already exists in MRU/MFU:
    * This is the case where the actual cache hits. Move the page to the front of MFU. */
-  if (alive_lru_.contains(frame_id) == true || alive_lfu_.contains(frame_id) == true) {
+  if (alive_lru_.contains(frame_id) || alive_lfu_.contains(frame_id)) {
     std::shared_ptr<FrameStatus> frame_status = std::make_shared<FrameStatus>(FrameStatus());
 
-    if (get(frame_id, frame_status) == false) {
+    std::lock_guard<std::mutex> guard(latch_);
+
+    if (!Get(frame_id, frame_status)) {
       return;
     }
 
     auto status = frame_status->arc_status_;
-    //auto evictable = frame_status->evictable_;
+    // auto evictable = frame_status->evictable_;
 
     if (status == ArcStatus::MRU) {
       alive_lru_.deleteNode(frame_id);
 
-      //if (evictable == true) {
-      //  alive_lru_.m_evictable_cnt_--;
-      //  alive_lfu_.m_evictable_cnt_++;
-      //}
+      // if (evictable ) {
+      //   alive_lru_.m_evictable_cnt_--;
+      //   alive_lfu_.m_evictable_cnt_++;
+      // }
 
       frame_status->arc_status_ = ArcStatus::MFU;
       alive_lfu_.put(frame_id, frame_status);
@@ -143,7 +144,7 @@ void ArcReplacer::RecordAccess(frame_id_t frame_id, page_id_t page_id, [[maybe_u
    * Do not increase the target size above replacer_size.
    * Then move the page to the front of MFU.
    * The rational of this is if the MRU list is a little larger, then the DBMS could have had a cache hit. */
-  else if (ghost_lru_.contains(page_id) == true) {
+  else if (ghost_lru_.contains(page_id)) {
     if (mru_target_size_ < replacer_size_) {
       if (ghost_lru_.size() >= ghost_lfu_.size()) {
         mru_target_size_++;
@@ -159,7 +160,7 @@ void ArcReplacer::RecordAccess(frame_id_t frame_id, page_id_t page_id, [[maybe_u
     frame_status->frame_id_ = frame_id;
     frame_status->arc_status_ = ArcStatus::MFU;
     alive_lfu_.put(page_id, frame_status);
-    if (frame_status->evictable_ == true) {
+    if (frame_status->evictable_) {
       curr_size_++;
     }
   }
@@ -169,7 +170,7 @@ void ArcReplacer::RecordAccess(frame_id_t frame_id, page_id_t page_id, [[maybe_u
    * decrease the MRU target size by 1. Else decrease the MRU target size by MRU ghost size / MFU ghost size (rounded
    * down). Do not decrease the target size below 0. Then move the page to the front of MFU. The rational of this is if
    * the MFU list is a little larger, the DBMS could have had a cache hit.*/
-  else if (ghost_lfu_.contains(page_id) == true) {
+  else if (ghost_lfu_.contains(page_id)) {
     if (mru_target_size_ > 0) {
       if (ghost_lfu_.size() >= ghost_lru_.size()) {
         mru_target_size_--;
@@ -185,7 +186,7 @@ void ArcReplacer::RecordAccess(frame_id_t frame_id, page_id_t page_id, [[maybe_u
     frame_status->frame_id_ = frame_id;
     frame_status->arc_status_ = ArcStatus::MFU;
     alive_lfu_.put(page_id, frame_status);
-    if (frame_status->evictable_ == true) {
+    if (frame_status->evictable_) {
       curr_size_++;
     }
   }
@@ -232,40 +233,26 @@ void ArcReplacer::RecordAccess(frame_id_t frame_id, page_id_t page_id, [[maybe_u
 void ArcReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
   std::shared_ptr<FrameStatus> frame = std::make_shared<FrameStatus>(FrameStatus());
 
-  //ArcStatus status = {};
-  if (get(frame_id, frame) == false) {
+  std::lock_guard<std::mutex> guard(latch_);
+  if (!Get(frame_id, frame)) {
     return;
   }
-  //status = frame->arc_status_;
 
-  bool oldEvictableStatus = frame->evictable_;
-  if (set_evictable == true) {
-    if (oldEvictableStatus == true) {
-      return;
-    } else if (oldEvictableStatus == false) {
-      frame->evictable_ = true;
-      curr_size_++;
-      //if (status == ArcStatus::MRU) {
-      //  alive_lru_.m_evictable_cnt_++;
-      //} else if (status == ArcStatus::MFU) {
-      //  alive_lfu_.m_evictable_cnt_++;
-      //}
-    }
-  } else if (set_evictable == false) {
-    if (oldEvictableStatus == true) {
-      frame->evictable_ = false;
-      curr_size_--;
-      //if (status == ArcStatus::MRU) {
-      //  alive_lru_.m_evictable_cnt_--;
-      //} else if (status == ArcStatus::MFU) {
-      //  alive_lfu_.m_evictable_cnt_--;
-      //}
-    } else if (oldEvictableStatus == false) {
+  bool old_evictable_status = frame->evictable_;
+  if (set_evictable) {
+    if (old_evictable_status) {
       return;
     }
+    frame->evictable_ = true;
+    curr_size_++;
+    return;
   }
 
-  return;
+  if (!old_evictable_status) {
+    return;
+  }
+  frame->evictable_ = false;
+  curr_size_--;
 }
 
 /**
@@ -286,21 +273,24 @@ void ArcReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
  */
 void ArcReplacer::Remove(frame_id_t frame_id) {
   auto frame = std::shared_ptr<FrameStatus>{};
-  if (get(frame_id, frame) == false) {
+
+  std::lock_guard<std::mutex> guard(latch_);
+
+  if (!Get(frame_id, frame)) {
     return;
   }
 
-  if (frame->evictable_ == false) {
+  if (!frame->evictable_) {
     return;
   }
 
-  if (alive_lru_.contains(frame_id) == true) {
+  if (alive_lru_.contains(frame_id)) {
     alive_lru_.deleteNode(frame_id);
-    //alive_lru_.m_evictable_cnt_--;
+    // alive_lru_.m_evictable_cnt_--;
   }
-  if (alive_lfu_.contains(frame_id) == true) {
+  if (alive_lfu_.contains(frame_id)) {
     alive_lfu_.deleteNode(frame_id);
-    //alive_lfu_.m_evictable_cnt_--;
+    // alive_lfu_.m_evictable_cnt_--;
   }
 
   curr_size_--;
@@ -313,5 +303,9 @@ void ArcReplacer::Remove(frame_id_t frame_id) {
  *
  * @return size_t
  */
-auto ArcReplacer::Size() -> size_t { return curr_size_; }
+auto ArcReplacer::Size() -> size_t {
+  std::lock_guard<std::mutex> guard(latch_);
+
+  return curr_size_;
+}
 }  // namespace bustub

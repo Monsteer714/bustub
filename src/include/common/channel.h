@@ -51,6 +51,13 @@ class Channel {
     return element;
   }
 
+  auto Peek() -> T {
+    std::unique_lock<std::mutex> lk(m_);
+    cv_.wait(lk, [&]() { return q_.empty(); });
+    auto element = std::move(q_.front());
+    return element;
+  }
+
  private:
   std::mutex m_;
   std::condition_variable cv_;
